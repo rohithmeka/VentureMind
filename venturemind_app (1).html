@@ -1,0 +1,1792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+<title>VentureMind</title>
+<meta name="description" content="A structured, on-device tool to evaluate entrepreneurial opportunities against your skills, budget, and risk appetite.">
+
+<!-- Home-screen / PWA-ish behaviour: no build tooling needed, just meta tags -->
+<meta name="theme-color" content="#0F1730">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="VentureMind">
+<link rel="icon" href="data:image/svg+xml,<svg%20xmlns="http://www.w3.org/2000/svg"%20viewBox="0%200%20100%20100"><rect%20width="100"%20height="100"%20rx="22"%20fill="%230F1730"/><circle%20cx="50"%20cy="42"%20r="16"%20fill="none"%20stroke="%234B4FE0"%20stroke-width="5"/><path%20d="M50%2058%20L50%2078%20M38%2070%20L62%2070"%20stroke="%231FAA59"%20stroke-width="5"%20stroke-linecap="round"/></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg%20xmlns="http://www.w3.org/2000/svg"%20viewBox="0%200%20100%20100"><rect%20width="100"%20height="100"%20rx="22"%20fill="%230F1730"/><circle%20cx="50"%20cy="42"%20r="16"%20fill="none"%20stroke="%234B4FE0"%20stroke-width="5"/><path%20d="M50%2058%20L50%2078%20M38%2070%20L62%2070"%20stroke="%231FAA59"%20stroke-width="5"%20stroke-linecap="round"/></svg>">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --ink: #0F1730;
+  --ink-2: #182248;
+  --paper: #F5F6FA;
+  --card: #FFFFFF;
+  --text: #12172B;
+  --text-on-ink: #EDEFF7;
+  --muted: #6B7280;
+  --line: #E2E4EE;
+  --accent: #4B4FE0;
+  --accent-soft: #EDEEFB;
+  --go: #1FAA59;
+  --go-soft: #E6F6ED;
+  --pivot: #E0A62B;
+  --pivot-soft: #FBF1DD;
+  --stop: #D64545;
+  --stop-soft: #FBE7E7;
+  --radius: 18px;
+  --radius-sm: 12px;
+  --font-display: "Fraunces", Georgia, serif;
+  --font-body: "IBM Plex Sans", -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; background: var(--ink); }
+body {
+  font-family: var(--font-body);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+}
+
+#app {
+  width: 100%;
+  max-width: 480px;
+  min-height: 100vh;
+  background: var(--paper);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* ---------- responsive: tablet and desktop ----------
+   Mobile stays exactly as designed (a single column, full-bleed).
+   Wider viewports get a wider column, and once there's enough room the
+   results screen switches from a stacked list to a 2-column grid instead
+   of just stretching every card edge-to-edge. */
+@media (min-width: 700px) {
+  #app, .bottom-nav { max-width: 640px; }
+}
+@media (min-width: 1000px) {
+  #app, .bottom-nav { max-width: 900px; }
+  .hero { padding: 40px 44px 30px; }
+  .hero-title { font-size: 36px; }
+  .step { padding: 28px 44px 110px; }
+  .results {
+    padding: 28px 40px 48px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-content: flex-start;
+  }
+  /* these should stay full-width even inside the wrapped flex layout */
+  .results > .gauge-card, .results > .warning-box,
+  .results > .disclaimer, .results > .restart-btn {
+    flex-basis: 100%;
+  }
+  .results > .card {
+    flex: 1 1 380px;
+    margin-bottom: 0;   /* the flex gap already spaces cards out */
+  }
+}
+
+/* ---------- header / hero ---------- */
+.hero {
+  background: linear-gradient(160deg, var(--ink) 0%, var(--ink-2) 100%);
+  color: var(--text-on-ink);
+  padding: 28px 22px 22px;
+  position: relative;
+  overflow: hidden;
+}
+.hero::after {
+  content: "";
+  position: absolute; right: -60px; top: -60px;
+  width: 200px; height: 200px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(75,79,224,0.35), transparent 70%);
+}
+.hero-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #9AA3D4;
+  margin-bottom: 6px;
+}
+.hero-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 30px;
+  line-height: 1.05;
+  margin: 0;
+}
+.hero-sub {
+  font-size: 13.5px;
+  color: #B7BEE6;
+  margin-top: 8px;
+  line-height: 1.5;
+  max-width: 34ch;
+}
+
+/* ---------- progress dots ---------- */
+.progress {
+  display: flex; gap: 6px; padding: 14px 22px 0;
+  background: var(--paper);
+}
+.progress .dot {
+  height: 4px; flex: 1; border-radius: 2px;
+  background: var(--line);
+  transition: background 0.25s;
+}
+.progress .dot.done { background: var(--accent); }
+
+/* ---------- step content ---------- */
+.step {
+  flex: 1;
+  padding: 20px 22px 100px;
+  animation: fadeIn 0.25s ease;
+}
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+.step-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.step-title {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0 0 6px;
+}
+.step-help {
+  font-size: 13.5px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin-bottom: 18px;
+}
+
+/* ---------- chips ---------- */
+.chip-group-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  margin: 16px 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.chip-group-label:first-child { margin-top: 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  font-family: var(--font-body);
+  font-size: 13px;
+  padding: 9px 14px;
+  border-radius: 999px;
+  border: 1.5px solid var(--line);
+  background: var(--card);
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s;
+}
+.chip.selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+  font-weight: 600;
+}
+.chip:active { transform: scale(0.96); }
+
+.freetext-row { margin-top: 16px; }
+.freetext-row input {
+  width: 100%; padding: 13px 14px; font-size: 15px;
+  border-radius: var(--radius-sm); border: 1.5px solid var(--line);
+  font-family: var(--font-body); background: var(--card);
+}
+.freetext-hint { font-size: 12px; color: var(--muted); margin-top: 6px; min-height: 16px; }
+.freetext-hint b { color: var(--accent); font-weight: 600; }
+
+/* ---------- budget input ---------- */
+.budget-input-wrap {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--card); border: 1.5px solid var(--line); border-radius: var(--radius-sm);
+  padding: 14px 16px; margin-bottom: 16px;
+}
+.budget-input-wrap .rupee { font-family: var(--font-mono); font-size: 20px; color: var(--muted); }
+.budget-input-wrap input {
+  border: none; outline: none; font-family: var(--font-mono); font-size: 22px;
+  width: 100%; background: transparent; color: var(--text);
+}
+.quickpicks { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* ---------- big choice cards (risk / time) ---------- */
+.choice-card {
+  border: 1.5px solid var(--line); background: var(--card); border-radius: var(--radius-sm);
+  padding: 16px; margin-bottom: 10px; cursor: pointer; transition: all 0.15s;
+}
+.choice-card.selected { border-color: var(--accent); background: var(--accent-soft); }
+.choice-card .cc-title { font-weight: 600; font-size: 15px; margin-bottom: 3px; }
+.choice-card .cc-desc { font-size: 12.5px; color: var(--muted); }
+
+/* ---------- bottom nav ---------- */
+.bottom-nav {
+  position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 100%; max-width: 480px;
+  background: var(--paper);
+  border-top: 1px solid var(--line);
+  padding: 12px 22px calc(12px + env(safe-area-inset-bottom));
+  display: flex; gap: 10px;
+}
+.btn {
+  font-family: var(--font-body); font-weight: 600; font-size: 14.5px;
+  border: none; border-radius: 999px; padding: 14px 18px;
+  cursor: pointer; text-align: center;
+}
+.btn-primary { background: var(--ink); color: white; flex: 1; }
+.btn-primary:active { opacity: 0.85; }
+.btn-primary:disabled { background: #C7CAD9; cursor: not-allowed; }
+.btn-ghost { background: transparent; color: var(--muted); border: 1.5px solid var(--line); }
+
+/* ---------- results (cockpit) ---------- */
+.results { padding: 22px 20px 40px; }
+.gauge-card {
+  background: var(--ink); color: var(--text-on-ink);
+  border-radius: var(--radius); padding: 22px 18px 18px; text-align: center; margin-bottom: 18px;
+  position: relative; overflow: hidden;
+}
+.gauge-card::after {
+  content: ""; position: absolute; left: -50px; bottom: -70px; width: 180px; height: 180px;
+  border-radius: 50%; background: radial-gradient(circle, rgba(75,79,224,0.35), transparent 70%);
+}
+.gauge-decision {
+  font-family: var(--font-display); font-weight: 700; font-size: 34px; letter-spacing: 0.01em;
+  margin-top: 6px;
+}
+.gauge-decision.GO { color: var(--go); }
+.gauge-decision.PIVOT { color: var(--pivot); }
+.gauge-decision.STOP { color: var(--stop); }
+.gauge-conf { font-family: var(--font-mono); font-size: 13px; color: #B7BEE6; margin-top: 2px; }
+
+.card {
+  background: var(--card); border-radius: var(--radius); padding: 18px;
+  margin-bottom: 14px; border: 1px solid var(--line);
+}
+.card h3 {
+  font-family: var(--font-display); font-size: 16px; margin: 0 0 12px; font-weight: 600;
+}
+.card .subtle { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+
+.rationale-list { margin: 0; padding: 0; list-style: none; }
+.rationale-list li {
+  font-size: 13.5px; line-height: 1.5; padding: 8px 0; border-top: 1px solid var(--line);
+}
+.rationale-list li:first-child { border-top: none; }
+
+.opp-headline { font-family: var(--font-display); font-size: 20px; font-weight: 600; }
+.opp-sub { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+.tag-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.tag {
+  font-family: var(--font-mono); font-size: 10.5px; padding: 4px 9px; border-radius: 999px;
+  background: var(--accent-soft); color: var(--accent);
+}
+
+.bar-row { margin-bottom: 12px; }
+.bar-row:last-child { margin-bottom: 0; }
+.bar-label { display: flex; justify-content: space-between; font-size: 12.5px; margin-bottom: 5px; }
+.bar-label .name { color: var(--text); font-weight: 500; }
+.bar-label .val { font-family: var(--font-mono); color: var(--muted); }
+.bar-track { height: 7px; background: var(--line); border-radius: 4px; overflow: hidden; }
+.bar-fill { height: 100%; background: var(--accent); border-radius: 4px; }
+
+.alloc-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; font-size: 13px; }
+.alloc-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.alloc-name { flex: 1; }
+.alloc-amt { font-family: var(--font-mono); color: var(--muted); font-size: 12.5px; }
+
+.stage-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); font-size: 13px; }
+.stage-row:first-child { border-top: none; }
+.stage-badge {
+  font-family: var(--font-mono); font-size: 10.5px; padding: 3px 9px; border-radius: 999px; font-weight: 600;
+}
+.stage-badge.INVEST_MORE { background: var(--go-soft); color: var(--go); }
+.stage-badge.HOLD { background: var(--accent-soft); color: var(--accent); }
+.stage-badge.PIVOT { background: var(--pivot-soft); color: var(--pivot); }
+.stage-badge.EXIT { background: var(--stop-soft); color: var(--stop); }
+
+.metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.metric { background: var(--paper); border-radius: var(--radius-sm); padding: 12px; }
+.metric .m-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+.metric .m-val { font-family: var(--font-mono); font-size: 16px; font-weight: 600; }
+.metric .m-target { font-size: 10.5px; color: var(--muted); margin-top: 2px; }
+
+.warning-box {
+  background: var(--pivot-soft); border-radius: var(--radius-sm); padding: 12px 14px;
+  font-size: 12.5px; color: #7A5B12; margin-bottom: 14px; line-height: 1.5;
+}
+
+.disclaimer {
+  font-size: 11.5px; color: var(--muted); line-height: 1.6; text-align: center;
+  padding: 10px 6px 4px;
+}
+
+.restart-btn { width: 100%; margin-top: 6px; }
+
+/* skill preview chip removal button */
+.chip .x { margin-left: 6px; opacity: 0.8; }
+
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+/* ==========================================================================
+   VENTUREMIND ENGINE.JS
+   A line-for-line-faithful JavaScript port of venturemind.py's 8 modules.
+   Pure functions only -- no DOM access -- so this file can run unmodified
+   in a browser <script> tag AND in Node for automated testing.
+
+   HONESTY NOTE ported from the Python file: the "feasibility model" below
+   reproduces the SAME rule-based scoring function that the Python SVM was
+   TRAINED to approximate (see RULE_WEIGHTS), squashed through a sigmoid.
+   Training a real scikit-learn SVM cannot run in a browser, so this is an
+   explicit, labelled approximation of the trained classifier's behaviour,
+   not a claim that an SVM is running client-side.
+   ========================================================================== */
+
+(function (root) {
+"use strict";
+
+// ---------------------------------------------------------------------------
+// Seeded RNG (mulberry32) -- deterministic, so re-running with the same
+// inputs on the same device gives the same numbers (mirrors the Python
+// fix where historical_demand_series/run_market_experiment use a fixed
+// numpy seed instead of an unseeded RNG).
+// ---------------------------------------------------------------------------
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function gaussian(rng) { // Box-Muller
+  let u = 0, v = 0;
+  while (u === 0) u = rng();
+  while (v === 0) v = rng();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+
+function gammaSample(rng, shape) {
+  // Marsaglia-Tsang method, with the standard boost for shape < 1.
+  if (shape < 1) {
+    const u = rng();
+    return gammaSample(rng, shape + 1) * Math.pow(u, 1 / shape);
+  }
+  const d = shape - 1 / 3;
+  const c = 1 / Math.sqrt(9 * d);
+  for (;;) {
+    let x, v;
+    do {
+      x = gaussian(rng);
+      v = 1 + c * x;
+    } while (v <= 0);
+    v = v * v * v;
+    const u = rng();
+    if (u < 1 - 0.0331 * x * x * x * x) return d * v;
+    if (Math.log(u) < 0.5 * x * x + d * (1 - v + Math.log(v))) return d * v;
+  }
+}
+
+function betaSample(rng, a, b) {
+  const ga = gammaSample(rng, a);
+  const gb = gammaSample(rng, b);
+  return ga / (ga + gb);
+}
+
+function poissonSample(rng, lambda) {
+  if (lambda < 30) {
+    // Knuth's algorithm
+    const L = Math.exp(-lambda);
+    let k = 0, p = 1;
+    do { k++; p *= rng(); } while (p > L);
+    return k - 1;
+  }
+  // normal approximation with continuity correction, for speed at larger lambda
+  const val = Math.round(lambda + Math.sqrt(lambda) * gaussian(rng));
+  return Math.max(0, val);
+}
+
+function deterministicSeedForSector(sector) {
+  let s = 42;
+  for (let i = 0; i < sector.length; i++) s += sector.charCodeAt(i);
+  return s;
+}
+
+// ---------------------------------------------------------------------------
+// Small linear algebra helpers (generic N x N Gauss-Jordan inverse, used for
+// both the 5x5 Markov fundamental matrix and the 4x4 risk covariance matrix)
+// ---------------------------------------------------------------------------
+function matInverse(A) {
+  const n = A.length;
+  const M = A.map((row, i) => row.concat(row.map((_, j) => (i === j ? 1 : 0))));
+  for (let col = 0; col < n; col++) {
+    let pivot = col;
+    for (let r = col + 1; r < n; r++) if (Math.abs(M[r][col]) > Math.abs(M[pivot][col])) pivot = r;
+    [M[col], M[pivot]] = [M[pivot], M[col]];
+    const pv = M[col][col];
+    for (let j = 0; j < 2 * n; j++) M[col][j] /= pv;
+    for (let r = 0; r < n; r++) {
+      if (r === col) continue;
+      const factor = M[r][col];
+      for (let j = 0; j < 2 * n; j++) M[r][j] -= factor * M[col][j];
+    }
+  }
+  return M.map((row) => row.slice(n));
+}
+function matVecMul(A, v) { return A.map((row) => row.reduce((s, x, j) => s + x * v[j], 0)); }
+function matMatMul(A, B) {
+  const n = A.length, m = B[0].length, k = B.length;
+  const out = Array.from({ length: n }, () => new Array(m).fill(0));
+  for (let i = 0; i < n; i++)
+    for (let j = 0; j < m; j++)
+      for (let p = 0; p < k; p++) out[i][j] += A[i][p] * B[p][j];
+  return out;
+}
+function dot(a, b) { return a.reduce((s, x, i) => s + x * b[i], 0); }
+function norm(a) { return Math.sqrt(dot(a, a)); }
+function clip(x, lo, hi) { return Math.min(hi, Math.max(lo, x)); }
+
+// ===========================================================================
+// TAXONOMIES (identical content to SKILL_TAXONOMY / SECTOR_TAXONOMY in the
+// Python file)
+// ===========================================================================
+const SKILL_TAXONOMY = [
+  "backend", "frontend", "mobile_dev", "data", "data_science", "machine_learning",
+  "hardware", "engineering", "mechanical_engineering", "electrical_engineering", "security",
+  "design", "ui_ux", "content", "copywriting", "video_production", "photography",
+  "sales", "marketing", "digital_marketing", "finance", "accounting", "hr", "recruiting",
+  "product_management", "project_management", "public_relations", "customer_support",
+  "operations", "logistics", "supply_chain", "compliance", "legal", "policy", "construction",
+  "healthcare", "pedagogy", "teaching", "biotech", "agriculture", "real_estate", "hospitality",
+];
+
+const SKILL_LABELS = {
+  backend: "Backend Development", frontend: "Frontend Development", mobile_dev: "Mobile App Development",
+  data: "Data Analysis", data_science: "Data Science", machine_learning: "Machine Learning / AI",
+  hardware: "Hardware / Electronics", engineering: "General Engineering",
+  mechanical_engineering: "Mechanical Engineering", electrical_engineering: "Electrical Engineering",
+  security: "Security / Cybersecurity", design: "Graphic Design", ui_ux: "UI/UX Design",
+  content: "Content Writing", copywriting: "Copywriting", video_production: "Video Production",
+  photography: "Photography", sales: "Sales", marketing: "Marketing",
+  digital_marketing: "Digital Marketing / SEO", finance: "Finance", accounting: "Accounting",
+  hr: "HR / People Ops", recruiting: "Recruiting / Talent Acquisition",
+  product_management: "Product Management", project_management: "Project Management",
+  public_relations: "Public Relations (PR)", customer_support: "Customer Support",
+  operations: "Operations", logistics: "Logistics", supply_chain: "Supply Chain",
+  compliance: "Regulatory Compliance", legal: "Legal", policy: "Policy / Govt Relations",
+  construction: "Construction", healthcare: "Healthcare", pedagogy: "Curriculum / Pedagogy",
+  teaching: "Teaching", biotech: "Biotechnology", agriculture: "Agriculture",
+  real_estate: "Real Estate", hospitality: "Hospitality / Travel",
+};
+
+const SKILL_GROUPS = {
+  "Tech": ["backend", "frontend", "mobile_dev", "data", "data_science", "machine_learning",
+    "hardware", "engineering", "mechanical_engineering", "electrical_engineering", "security"],
+  "Design / Creative": ["design", "ui_ux", "content", "copywriting", "video_production", "photography"],
+  "Business": ["sales", "marketing", "digital_marketing", "finance", "accounting", "hr", "recruiting",
+    "product_management", "project_management", "public_relations", "customer_support"],
+  "Operations / Legal": ["operations", "logistics", "supply_chain", "compliance", "legal", "policy", "construction"],
+  "Domain-Specific": ["healthcare", "pedagogy", "teaching", "biotech", "agriculture", "real_estate", "hospitality"],
+};
+
+const SKILL_SYNONYMS = {
+  "coding": "backend", "programming": "backend", "software": "backend", "software development": "backend",
+  "web dev": "frontend", "web development": "frontend", "website": "frontend",
+  "app dev": "mobile_dev", "android": "mobile_dev", "ios": "mobile_dev", "app development": "mobile_dev",
+  "ml": "machine_learning", "ai": "machine_learning", "artificial intelligence": "machine_learning",
+  "analytics": "data_science", "data analytics": "data_science",
+  "electronics": "hardware", "embedded": "hardware", "embedded systems": "hardware",
+  "cyber security": "security", "cybersecurity": "security", "infosec": "security",
+  "graphic design": "design", "ux": "ui_ux", "ui": "ui_ux", "product design": "ui_ux",
+  "writing": "content", "copy writing": "copywriting", "video editing": "video_production",
+  "seo": "digital_marketing", "growth marketing": "digital_marketing", "branding": "marketing",
+  "accountant": "accounting", "bookkeeping": "accounting", "law": "legal", "lawyer": "legal",
+  "hiring": "recruiting", "talent acquisition": "recruiting", "people ops": "hr",
+  "pm": "product_management", "scrum": "project_management", "agile": "project_management",
+  "pr": "public_relations", "support": "customer_support",
+  "supply chain management": "supply_chain", "govt relations": "policy", "government relations": "policy",
+  "civil engineering": "construction", "medicine": "healthcare", "doctor": "healthcare",
+  "nursing": "healthcare", "farming": "agriculture", "property": "real_estate", "travel": "hospitality",
+};
+
+const SECTOR_TAXONOMY = [
+  "FinTech", "EdTech", "HealthTech", "AgriTech", "E-commerce", "SaaS/B2B", "FoodTech", "CleanTech",
+  "Logistics/Mobility", "Gaming/Media", "Cybersecurity", "InsurTech", "Travel & Hospitality",
+  "PropTech/RealEstate", "HRTech", "D2C Consumer Brands",
+];
+
+const SECTOR_SYNONYMS = {
+  "fintech": "FinTech", "ed tech": "EdTech", "edtech": "EdTech", "health tech": "HealthTech",
+  "healthtech": "HealthTech", "agritech": "AgriTech", "agri tech": "AgriTech",
+  "ecommerce": "E-commerce", "e commerce": "E-commerce", "online retail": "E-commerce",
+  "saas": "SaaS/B2B", "b2b": "SaaS/B2B", "b2b saas": "SaaS/B2B", "food tech": "FoodTech",
+  "foodtech": "FoodTech", "clean tech": "CleanTech", "cleantech": "CleanTech",
+  "renewable energy": "CleanTech", "mobility": "Logistics/Mobility", "logistics": "Logistics/Mobility",
+  "gaming": "Gaming/Media", "media": "Gaming/Media", "entertainment": "Gaming/Media",
+  "cyber security": "Cybersecurity", "cybersecurity": "Cybersecurity", "infosec": "Cybersecurity",
+  "insurance": "InsurTech", "insurtech": "InsurTech", "travel": "Travel & Hospitality",
+  "hospitality": "Travel & Hospitality", "tourism": "Travel & Hospitality",
+  "real estate": "PropTech/RealEstate", "proptech": "PropTech/RealEstate", "property": "PropTech/RealEstate",
+  "hr tech": "HRTech", "hrtech": "HRTech", "human resources": "HRTech",
+  "d2c": "D2C Consumer Brands", "consumer brands": "D2C Consumer Brands", "dtc": "D2C Consumer Brands",
+};
+
+const RISK_LABEL_MAP = { low: 0.2, medium: 0.5, moderate: 0.5, high: 0.85 };
+const TIME_LABEL_MAP = { "part-time": 0.3, "part time": 0.3, "side-project": 0.2,
+  "full-time": 1.0, "full time": 1.0, "weekends-only": 0.15 };
+
+// ---- fuzzy matching: normalized Levenshtein similarity, mirroring the
+// role difflib.get_close_matches(cutoff=0.8) plays in the Python version ----
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1]
+        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+  return dp[m][n];
+}
+function similarityRatio(a, b) {
+  const maxLen = Math.max(a.length, b.length);
+  if (maxLen === 0) return 1;
+  return 1 - levenshtein(a, b) / maxLen;
+}
+
+function matchFreeTextTokens(tokens, taxonomy, synonyms, fuzzyCutoff) {
+  fuzzyCutoff = fuzzyCutoff || 0.8;
+  const taxonomyLowerMap = {};
+  taxonomy.forEach((t) => (taxonomyLowerMap[t.toLowerCase()] = t));
+  const matched = [], unmatched = [];
+
+  tokens.forEach((raw) => {
+    const t = (raw || "").trim().toLowerCase();
+    if (!t) return;
+    if (taxonomyLowerMap[t]) { matched.push(taxonomyLowerMap[t]); return; }
+    if (synonyms[t]) { matched.push(synonyms[t]); return; }
+
+    const candidates = Object.keys(taxonomyLowerMap).concat(Object.keys(synonyms));
+    let best = null, bestScore = fuzzyCutoff;
+    candidates.forEach((c) => {
+      const score = similarityRatio(t, c);
+      if (score >= bestScore) { bestScore = score; best = c; }
+    });
+    if (best) { matched.push(taxonomyLowerMap[best] || synonyms[best]); return; }
+
+    unmatched.push(raw.trim());
+  });
+
+  const seen = new Set(), deduped = [];
+  matched.forEach((m) => { if (!seen.has(m)) { seen.add(m); deduped.push(m); } });
+  return { matched: deduped, unmatched };
+}
+
+function resolveScalar(value, labelMap, defaultVal) {
+  if (typeof value === "number") return clip(value, 0, 1);
+  if (typeof value === "string") {
+    const key = value.trim().toLowerCase();
+    if (key in labelMap) return labelMap[key];
+  }
+  return defaultVal;
+}
+
+// ===========================================================================
+// MODULE 2 (data layer) -- sector / state benchmark tables, identical
+// numbers to SECTOR_TABLE / STATE_TABLE in venturemind.py
+// ===========================================================================
+const SECTOR_TABLE = [
+  { sector: "FinTech", demand_index: 0.82, growth_rate: 0.21, competition_density: 0.78, avg_capital_required: 2500000, historical_failure_rate: 0.62, required_skills: ["finance", "compliance", "backend", "security"] },
+  { sector: "EdTech", demand_index: 0.63, growth_rate: 0.09, competition_density: 0.71, avg_capital_required: 1200000, historical_failure_rate: 0.58, required_skills: ["content", "sales", "frontend", "pedagogy"] },
+  { sector: "HealthTech", demand_index: 0.77, growth_rate: 0.24, competition_density: 0.55, avg_capital_required: 3500000, historical_failure_rate: 0.55, required_skills: ["healthcare", "compliance", "backend", "data"] },
+  { sector: "AgriTech", demand_index: 0.58, growth_rate: 0.15, competition_density: 0.34, avg_capital_required: 1800000, historical_failure_rate: 0.50, required_skills: ["operations", "hardware", "logistics", "sales"] },
+  { sector: "E-commerce", demand_index: 0.70, growth_rate: 0.12, competition_density: 0.88, avg_capital_required: 2000000, historical_failure_rate: 0.65, required_skills: ["marketing", "logistics", "frontend", "sales"] },
+  { sector: "SaaS/B2B", demand_index: 0.74, growth_rate: 0.19, competition_density: 0.60, avg_capital_required: 1500000, historical_failure_rate: 0.52, required_skills: ["backend", "frontend", "sales", "data"] },
+  { sector: "FoodTech", demand_index: 0.55, growth_rate: 0.08, competition_density: 0.80, avg_capital_required: 1600000, historical_failure_rate: 0.66, required_skills: ["operations", "logistics", "marketing"] },
+  { sector: "CleanTech", demand_index: 0.61, growth_rate: 0.27, competition_density: 0.28, avg_capital_required: 4500000, historical_failure_rate: 0.48, required_skills: ["hardware", "engineering", "policy", "data"] },
+  { sector: "Logistics/Mobility", demand_index: 0.66, growth_rate: 0.14, competition_density: 0.50, avg_capital_required: 2800000, historical_failure_rate: 0.53, required_skills: ["operations", "logistics", "backend", "hardware"] },
+  { sector: "Gaming/Media", demand_index: 0.59, growth_rate: 0.17, competition_density: 0.62, avg_capital_required: 1000000, historical_failure_rate: 0.60, required_skills: ["frontend", "design", "content", "marketing"] },
+  { sector: "Cybersecurity", demand_index: 0.72, growth_rate: 0.22, competition_density: 0.45, avg_capital_required: 3000000, historical_failure_rate: 0.50, required_skills: ["security", "backend", "compliance", "data"] },
+  { sector: "InsurTech", demand_index: 0.68, growth_rate: 0.18, competition_density: 0.40, avg_capital_required: 2800000, historical_failure_rate: 0.55, required_skills: ["finance", "compliance", "backend", "data"] },
+  { sector: "Travel & Hospitality", demand_index: 0.60, growth_rate: 0.10, competition_density: 0.65, avg_capital_required: 1400000, historical_failure_rate: 0.60, required_skills: ["operations", "hospitality", "marketing", "sales"] },
+  { sector: "PropTech/RealEstate", demand_index: 0.57, growth_rate: 0.13, competition_density: 0.55, avg_capital_required: 3200000, historical_failure_rate: 0.52, required_skills: ["real_estate", "sales", "operations", "finance"] },
+  { sector: "HRTech", demand_index: 0.55, growth_rate: 0.16, competition_density: 0.48, avg_capital_required: 1300000, historical_failure_rate: 0.54, required_skills: ["hr", "recruiting", "backend", "data"] },
+  { sector: "D2C Consumer Brands", demand_index: 0.65, growth_rate: 0.14, competition_density: 0.82, avg_capital_required: 1700000, historical_failure_rate: 0.63, required_skills: ["marketing", "operations", "logistics", "design"] },
+];
+
+const STATE_TABLE = [
+  { state: "Karnataka", ecosystem_index: 0.93, tier: "Best Performer", cost_of_living_index: 0.80 },
+  { state: "Telangana", ecosystem_index: 0.88, tier: "Best Performer", cost_of_living_index: 0.68 },
+  { state: "Maharashtra", ecosystem_index: 0.85, tier: "Top Performer", cost_of_living_index: 0.82 },
+  { state: "Tamil Nadu", ecosystem_index: 0.80, tier: "Top Performer", cost_of_living_index: 0.62 },
+  { state: "Delhi NCR", ecosystem_index: 0.90, tier: "Best Performer", cost_of_living_index: 0.85 },
+  { state: "Gujarat", ecosystem_index: 0.76, tier: "Leader", cost_of_living_index: 0.55 },
+  { state: "Kerala", ecosystem_index: 0.70, tier: "Leader", cost_of_living_index: 0.50 },
+  { state: "Uttar Pradesh", ecosystem_index: 0.60, tier: "Aspiring Leader", cost_of_living_index: 0.40 },
+  { state: "West Bengal", ecosystem_index: 0.58, tier: "Aspiring Leader", cost_of_living_index: 0.45 },
+  { state: "Rajasthan", ecosystem_index: 0.55, tier: "Emerging", cost_of_living_index: 0.38 },
+];
+
+const REGION_OF_STATE = {
+  "Karnataka": "South", "Telangana": "South", "Tamil Nadu": "South", "Kerala": "South",
+  "Maharashtra": "West", "Gujarat": "West",
+  "Delhi NCR": "North", "Uttar Pradesh": "North", "Rajasthan": "North",
+  "West Bengal": "East",
+};
+
+const CITY_TO_STATE = {
+  "hyderabad": "Telangana", "bengaluru": "Karnataka", "bangalore": "Karnataka",
+  "mumbai": "Maharashtra", "pune": "Maharashtra", "chennai": "Tamil Nadu",
+  "delhi": "Delhi NCR", "new delhi": "Delhi NCR", "gurugram": "Delhi NCR",
+  "gurgaon": "Delhi NCR", "noida": "Delhi NCR", "ahmedabad": "Gujarat",
+  "surat": "Gujarat", "kochi": "Kerala", "thiruvananthapuram": "Kerala",
+  "lucknow": "Uttar Pradesh", "kanpur": "Uttar Pradesh", "varanasi": "Uttar Pradesh",
+  "kolkata": "West Bengal", "jaipur": "Rajasthan", "udaipur": "Rajasthan", "jodhpur": "Rajasthan",
+};
+
+function resolveFounderState(locationRaw) {
+  if (!locationRaw) return null;
+  const loc = locationRaw.trim().toLowerCase();
+  for (const row of STATE_TABLE) {
+    const s = row.state.toLowerCase();
+    if (loc.includes(s) || s.includes(loc)) return row.state;
+  }
+  for (const city in CITY_TO_STATE) {
+    if (loc.includes(city)) return CITY_TO_STATE[city];
+  }
+  return null;
+}
+
+function locationAffinity(founderState, opportunityState) {
+  if (founderState === null) return 0.5;
+  if (founderState === opportunityState) return 1.0;
+  if (REGION_OF_STATE[founderState] === REGION_OF_STATE[opportunityState]) return 0.65;
+  return 0.35;
+}
+
+function buildOpportunities() {
+  const opportunities = [];
+  SECTOR_TABLE.forEach((srow) => {
+    STATE_TABLE.forEach((strow) => {
+      opportunities.push({
+        opportunity_id: srow.sector + "::" + strow.state,
+        sector: srow.sector, state: strow.state,
+        demand_index: srow.demand_index, growth_rate: srow.growth_rate,
+        competition_density: Math.min(1.0, srow.competition_density * (0.6 + 0.5 * strow.ecosystem_index)),
+        avg_capital_required: srow.avg_capital_required,
+        historical_failure_rate: srow.historical_failure_rate,
+        ecosystem_index: strow.ecosystem_index,
+        cost_of_living_index: strow.cost_of_living_index,
+        required_skills: srow.required_skills,
+      });
+    });
+  });
+  return opportunities;
+}
+function adjustedCapitalRequired(opp) { return opp.avg_capital_required * (0.7 + 0.6 * opp.cost_of_living_index); }
+
+function historicalDemandSeries(sector, periods) {
+  periods = periods || 24;
+  const row = SECTOR_TABLE.find((r) => r.sector === sector);
+  if (!row) throw new Error("Unknown sector " + sector);
+  const rng = mulberry32(deterministicSeedForSector(sector));
+  const monthlyGrowth = row.growth_rate / 12.0;
+  const values = new Array(periods);
+  values[periods - 1] = row.demand_index;
+  for (let i = periods - 2; i >= 0; i--) values[i] = values[i + 1] / (1 + monthlyGrowth);
+  for (let i = 0; i < periods; i++) values[i] = clip(values[i] + gaussian(rng) * 0.02, 0.01, 1.0);
+  const weight = Array.from({ length: periods }, (_, i) => 0.4 + (0.6 * i) / (periods - 1));
+  return { t: Array.from({ length: periods }, (_, i) => i), demand: values, weight };
+}
+
+function weightedLeastSquaresTrend(sector, forecastHorizon) {
+  forecastHorizon = forecastHorizon || 6;
+  const hist = historicalDemandSeries(sector);
+  const { t, demand: y, weight: w } = hist;
+  let Sw = 0, Swx = 0, Swy = 0, Swxx = 0, Swxy = 0;
+  for (let i = 0; i < t.length; i++) {
+    Sw += w[i]; Swx += w[i] * t[i]; Swy += w[i] * y[i];
+    Swxx += w[i] * t[i] * t[i]; Swxy += w[i] * t[i] * y[i];
+  }
+  const det = Sw * Swxx - Swx * Swx;
+  const slope = (Sw * Swxy - Swx * Swy) / det;
+  const intercept = (Swxx * Swy - Swx * Swxy) / det;
+
+  let ssRes = 0, ssTot = 0;
+  const yBar = Swy / Sw;
+  for (let i = 0; i < t.length; i++) {
+    const pred = slope * t[i] + intercept;
+    ssRes += w[i] * (y[i] - pred) * (y[i] - pred);
+    ssTot += w[i] * (y[i] - yBar) * (y[i] - yBar);
+  }
+  const rSquared = ssTot > 0 ? 1 - ssRes / ssTot : 0;
+
+  const lastT = t[t.length - 1];
+  const forecast = [];
+  for (let h = 1; h <= forecastHorizon; h++) forecast.push(clip(slope * (lastT + h) + intercept, 0, 1));
+
+  return { sector, slope, intercept, rSquared, forecast };
+}
+
+// ===========================================================================
+// MODULE 1 -- Founder Profile
+// ===========================================================================
+function buildFounderProfile(raw) {
+  if (!raw.budgetInr || raw.budgetInr <= 0) throw new Error("budgetInr must be a positive number.");
+  const skillsMatch = matchFreeTextTokens(raw.skills || [], SKILL_TAXONOMY, SKILL_SYNONYMS);
+  const interestsMatch = matchFreeTextTokens(raw.interests || [], SECTOR_TAXONOMY, SECTOR_SYNONYMS);
+  const riskVal = resolveScalar(raw.riskTolerance, RISK_LABEL_MAP, 0.5);
+  const timeVal = resolveScalar(raw.timeAvailability, TIME_LABEL_MAP, 0.5);
+
+  const warnings = [];
+  if (skillsMatch.unmatched.length)
+    warnings.push("Skills not in taxonomy (ignored in scoring): " + JSON.stringify(skillsMatch.unmatched));
+  if (interestsMatch.unmatched.length)
+    warnings.push("Interests not in sector taxonomy (ignored in scoring): " + JSON.stringify(interestsMatch.unmatched));
+  if (!skillsMatch.matched.length)
+    warnings.push("No recognized skills given -- founder-fit will rely mostly on interests/budget.");
+
+  return {
+    skills: skillsMatch.matched, budgetInr: raw.budgetInr, location: (raw.location || "").trim(),
+    interests: interestsMatch.matched, riskTolerance: riskVal, timeAvailability: timeVal, warnings,
+  };
+}
+
+function budgetScore(budgetInr, minB, maxB) {
+  minB = minB || 50000; maxB = maxB || 50000000;
+  const b = clip(budgetInr, minB, maxB);
+  return (Math.log10(b) - Math.log10(minB)) / (Math.log10(maxB) - Math.log10(minB));
+}
+
+function founderVector(founder) {
+  const skillVec = SKILL_TAXONOMY.map((s) => (founder.skills.includes(s) ? 1 : 0));
+  const interestVec = SECTOR_TAXONOMY.map((s) => (founder.interests.includes(s) ? 1 : 0));
+  return skillVec.concat(interestVec, [budgetScore(founder.budgetInr), founder.riskTolerance, founder.timeAvailability]);
+}
+
+// ===========================================================================
+// MODULE 3 -- Opportunity Matching
+// ===========================================================================
+function opportunityRequirementVector(opp, minB, maxB) {
+  minB = minB || 50000; maxB = maxB || 50000000;
+  const skillVec = SKILL_TAXONOMY.map((s) => (opp.required_skills.includes(s) ? 1 : 0));
+  const interestVec = SECTOR_TAXONOMY.map((s) => (s === opp.sector ? 1 : 0));
+  const cap = clip(adjustedCapitalRequired(opp), minB, maxB);
+  const capitalScore = (Math.log10(cap) - Math.log10(minB)) / (Math.log10(maxB) - Math.log10(minB));
+  const requiredRiskTolerance = opp.historical_failure_rate;
+  return skillVec.concat(interestVec, [capitalScore, requiredRiskTolerance, 1.0]);
+}
+function cosineSimilarity(a, b) {
+  const na = norm(a), nb = norm(b);
+  if (na === 0 || nb === 0) return 0;
+  return dot(a, b) / (na * nb);
+}
+
+// RULE_WEIGHTS: identical scoring rule to Python's _rule_based_feasibility_label
+// (minus its label noise, since here we want the smooth underlying score, not
+// a noisy 0/1 draw), squashed with a sigmoid to produce a 0-1 probability --
+// this is the in-browser stand-in for the trained SVM (see file header note).
+function feasibilityProbability(founder, opp) {
+  const skillOverlap = founder.skills.filter((s) => opp.required_skills.includes(s)).length;
+  const capitalRequired = adjustedCapitalRequired(opp);
+  const capitalRatio = founder.budgetInr / Math.max(capitalRequired, 1);
+
+  let score = 0;
+  score += capitalRatio >= 0.6 ? 1.4 : capitalRatio >= 0.3 ? 0.4 : -0.8;
+  score += skillOverlap >= 2 ? 0.9 : skillOverlap === 1 ? 0.2 : -0.7;
+  score += founder.riskTolerance >= opp.historical_failure_rate - 0.15 ? 0.6 : -0.6;
+  // sigmoid squash, centered so score=0.35 (the Python rule's decision boundary) -> 0.5 probability
+  return 1 / (1 + Math.exp(-1.6 * (score - 0.35)));
+}
+
+function matchOpportunities(founder, opportunities) {
+  const fVec = founderVector(founder);
+  const results = opportunities.map((opp) => {
+    const oVec = opportunityRequirementVector(opp);
+    const similarity = cosineSimilarity(fVec, oVec);
+    const feasibility = feasibilityProbability(founder, opp);
+    const skillOverlap = founder.skills.filter((s) => opp.required_skills.includes(s)).length;
+    return { opportunity: opp, similarity, feasibilityProbability: feasibility, skillOverlap };
+  });
+  results.sort((a, b) => (b.similarity * 0.5 + b.feasibilityProbability * 0.5) - (a.similarity * 0.5 + a.feasibilityProbability * 0.5));
+  return results;
+}
+
+// ===========================================================================
+// MODULE 4 -- Opportunity Scoring
+// ===========================================================================
+const DEFAULT_WEIGHTS = { demand: 0.20, competition: 0.13, founder_fit: 0.22, capital_feasibility: 0.17, risk: 0.13, location: 0.15 };
+
+function scoreOpportunities(matchResults, founderState, weights) {
+  weights = weights || DEFAULT_WEIGHTS;
+  const scored = matchResults.map((m) => {
+    const opp = m.opportunity;
+    const demand = clip(0.7 * opp.demand_index + 0.3 * Math.min(opp.growth_rate / 0.3, 1), 0, 1);
+    const competition = 1 - opp.competition_density;
+    const founderFit = clip((m.similarity + 1) / 2, 0, 1);
+    const capitalFeasibility = m.feasibilityProbability;
+    const risk = 1 - opp.historical_failure_rate;
+    const location = locationAffinity(founderState, opp.state);
+    const components = { demand, competition, founder_fit: founderFit, capital_feasibility: capitalFeasibility, risk, location };
+    let total = 0;
+    for (const k in components) total += weights[k] * components[k];
+    return { match: m, opportunity: opp, components, score: clip(total, 0, 1) };
+  });
+  scored.sort((a, b) => b.score - a.score);
+  return scored;
+}
+
+// ===========================================================================
+// MODULE 5 -- Resource Optimizer (LP feasibility -> QP via Lagrangian
+// bisection -> KKT verification), identical logic to resource_optimizer.py
+// ===========================================================================
+const CATEGORIES = ["Product Development", "Marketing & Sales", "Operations", "Legal & Compliance", "Contingency Reserve"];
+const MIN_FRACTIONS_BASE = { "Product Development": 0.15, "Marketing & Sales": 0.08, "Operations": 0.10, "Legal & Compliance": 0.03, "Contingency Reserve": 0.05 };
+const MIN_ABSOLUTE_BASE_INR = { "Product Development": 40000, "Marketing & Sales": 20000, "Operations": 25000, "Legal & Compliance": 15000, "Contingency Reserve": 15000 };
+const COMPLIANCE_SENSITIVE = ["finance", "compliance", "healthcare", "policy", "legal"];
+
+function categoryWeights(opp) {
+  const complianceSet = ["finance", "compliance", "healthcare", "policy", "security", "legal"];
+  const complianceLoad = opp.required_skills.filter((s) => complianceSet.includes(s)).length / Math.max(opp.required_skills.length, 1);
+  return {
+    "Product Development": 1.0 + 0.5 * opp.growth_rate * 4,
+    "Marketing & Sales": 0.6 + 0.9 * opp.competition_density,
+    "Operations": 0.7 + 0.3 * opp.cost_of_living_index,
+    "Legal & Compliance": 0.4 + 1.4 * complianceLoad,
+    "Contingency Reserve": 0.5 + 0.8 * opp.historical_failure_rate,
+  };
+}
+function minFractions(opp) {
+  const fractions = Object.assign({}, MIN_FRACTIONS_BASE);
+  if (opp.required_skills.some((s) => COMPLIANCE_SENSITIVE.includes(s)))
+    fractions["Legal & Compliance"] = Math.max(fractions["Legal & Compliance"], 0.08);
+  if (opp.historical_failure_rate > 0.6)
+    fractions["Contingency Reserve"] = Math.max(fractions["Contingency Reserve"], 0.10);
+  return fractions;
+}
+function minAmounts(opp, budget) {
+  const fractions = minFractions(opp);
+  const colScale = 0.7 + 0.6 * opp.cost_of_living_index;
+  return CATEGORIES.map((c) => {
+    const fracFloor = fractions[c] * budget;
+    let absFloor = MIN_ABSOLUTE_BASE_INR[c] * colScale;
+    if (c === "Legal & Compliance" && opp.required_skills.some((s) => COMPLIANCE_SENSITIVE.includes(s))) absFloor *= 1.5;
+    return Math.max(fracFloor, absFloor);
+  });
+}
+
+function lpFeasibility(budget, mins) {
+  const total = mins.reduce((a, b) => a + b, 0);
+  if (total <= budget) return { status: "feasible", mins, minimumsScaled: false };
+  const scaled = mins.map((m) => (m * budget) / total * 0.98);
+  return { status: "infeasible_at_declared_minimums_scaled_down", mins: scaled, minimumsScaled: true };
+}
+
+function qpAllocate(budget, mins, w, c) {
+  const n = w.length;
+  const xOfLambda = (lam) => w.map((wi, i) => clip((wi - lam) / c[i], mins[i], budget));
+  let lo = Math.min(...w.map((wi, i) => wi - c[i] * budget)) - 10;
+  let hi = Math.max(...w.map((wi, i) => wi - c[i] * mins[i])) + 10;
+  for (let iter = 0; iter < 200; iter++) {
+    const mid = (lo + hi) / 2;
+    const total = xOfLambda(mid).reduce((a, b) => a + b, 0);
+    if (total > budget) lo = mid; else hi = mid;
+  }
+  let x = xOfLambda((lo + hi) / 2);
+  x = x.map((xi, i) => Math.max(xi, mins[i]));
+  const sum = x.reduce((a, b) => a + b, 0);
+  x = x.map((xi) => (xi * budget) / sum);
+  return x;
+}
+
+function verifyKKT(x, mins, w, c, budget) {
+  const primalFeasible = x.every((xi, i) => xi >= mins[i] - 1e-6) && Math.abs(x.reduce((a, b) => a + b, 0) - budget) < 1e-3;
+  const marginalUtility = x.map((xi, i) => w[i] - c[i] * xi);
+  const atBound = x.map((xi, i) => xi <= mins[i] + 1e-4);
+  const interior = marginalUtility.filter((_, i) => !atBound[i]);
+  let lambda, stationarityOk;
+  if (interior.length > 0) {
+    lambda = interior.reduce((a, b) => a + b, 0) / interior.length;
+    stationarityOk = interior.every((mu) => Math.abs(mu - lambda) < 1e-2 * Math.max(Math.abs(lambda), 1));
+  } else {
+    lambda = Math.max(...marginalUtility);
+    stationarityOk = true;
+  }
+  const boundMu = marginalUtility.filter((_, i) => atBound[i]);
+  const dualFeasible = boundMu.every((mu) => mu <= lambda + 1e-3 * Math.max(Math.abs(lambda), 1));
+  return { satisfied: primalFeasible && stationarityOk && dualFeasible, primalFeasible, stationarityOk, dualFeasible, lambda };
+}
+
+function solveResourceOptimizer(budget, opp) {
+  if (budget <= 0) throw new Error("Budget must be positive.");
+  const weightsObj = categoryWeights(opp);
+  const w = CATEGORIES.map((c) => weightsObj[c]);
+  const lp = lpFeasibility(budget, minAmounts(opp, budget));
+  const c = w.map((wi) => wi / budget);
+  const x = qpAllocate(budget, lp.mins, w, c);
+  const kkt = verifyKKT(x, lp.mins, w, c, budget);
+  if (!kkt.satisfied) throw new Error("Resource allocation failed KKT verification.");
+  const allocations = {}, fractions = {};
+  CATEGORIES.forEach((cat, i) => { allocations[cat] = x[i]; fractions[cat] = x[i] / budget; });
+  return { budget, allocations, fractions, weights: weightsObj, lpStatus: lp.status, minimumsScaled: lp.minimumsScaled, kkt };
+}
+
+// ===========================================================================
+// MODULE 6 -- Market Trend & Risk (WLS above; Mahalanobis-based "Market
+// Profile Deviation" below, identical to MarketProfileDeviationModel)
+// ===========================================================================
+function buildRiskModel(opportunities) {
+  const X = opportunities.map((o) => [o.demand_index, o.growth_rate, 1 - o.competition_density, o.ecosystem_index]);
+  const n = X.length, d = X[0].length;
+  const mean = new Array(d).fill(0);
+  X.forEach((row) => row.forEach((v, j) => (mean[j] += v / n)));
+  const cov = Array.from({ length: d }, () => new Array(d).fill(0));
+  X.forEach((row) => {
+    for (let i = 0; i < d; i++)
+      for (let j = 0; j < d; j++)
+        cov[i][j] += (row[i] - mean[i]) * (row[j] - mean[j]) / (n - 1);
+  });
+  for (let i = 0; i < d; i++) cov[i][i] += 1e-6; // ridge
+  const covInv = matInverse(cov);
+  return { mean, covInv };
+}
+function riskScoreFor(riskModel, opp) {
+  const x = [opp.demand_index, opp.growth_rate, 1 - opp.competition_density, opp.ecosystem_index];
+  const diff = x.map((xi, i) => xi - riskModel.mean[i]);
+  const d2 = dot(diff, matVecMul(riskModel.covInv, diff));
+  const d = Math.sqrt(Math.max(d2, 0));
+  const unhealthyDirection = diff.reduce((s, v) => s + Math.max(-v, 0), 0);
+  const absSum = diff.reduce((s, v) => s + Math.abs(v), 0) + 1e-9;
+  const directionalPenalty = d * (0.4 + 0.6 * Math.min(unhealthyDirection / absSum, 1));
+  const riskScore = 1 / (1 + Math.exp(-(directionalPenalty - 2.0)));
+  return { mahalanobisDistance: d, riskScore };
+}
+
+// ===========================================================================
+// MODULE 7 -- Business Evolution: Markov Chain + MDP (identical constants
+// and logic to business_evolution.py)
+// ===========================================================================
+const STATES = ["IDEA", "VALIDATION", "EARLY_TRACTION", "GROWTH", "DECLINE", "FAILURE", "SUCCESS"];
+const TRANSIENT = STATES.slice(0, 5);
+const ABSORBING = STATES.slice(5);
+const IDX = {}; STATES.forEach((s, i) => (IDX[s] = i));
+
+const BASE_MATRIX = {
+  IDEA: { VALIDATION: 0.70, FAILURE: 0.30 },
+  VALIDATION: { EARLY_TRACTION: 0.55, DECLINE: 0.25, FAILURE: 0.20 },
+  EARLY_TRACTION: { GROWTH: 0.50, DECLINE: 0.30, FAILURE: 0.20 },
+  GROWTH: { SUCCESS: 0.55, DECLINE: 0.30, FAILURE: 0.15 },
+  DECLINE: { EARLY_TRACTION: 0.30, DECLINE: 0.20, FAILURE: 0.50 },
+};
+const FAVORABLE = new Set(["VALIDATION", "EARLY_TRACTION", "GROWTH", "SUCCESS"]);
+const UNFAVORABLE = new Set(["DECLINE", "FAILURE"]);
+
+function buildFullMatrix(riskScore, momentum) {
+  const momentumClipped = clip(momentum, -0.02, 0.02);
+  const riskShift = clip(riskScore - 0.5, -0.5, 0.5);
+  const momentumShift = (momentumClipped / 0.02) * 0.5;
+  const netPull = 0.5 * -riskShift + 0.5 * momentumShift;
+
+  const M = Array.from({ length: STATES.length }, () => new Array(STATES.length).fill(0));
+  ABSORBING.forEach((s) => (M[IDX[s]][IDX[s]] = 1.0));
+
+  Object.keys(BASE_MATRIX).forEach((src) => {
+    const weights = Object.assign({}, BASE_MATRIX[src]);
+    Object.keys(weights).forEach((tgt) => {
+      if (FAVORABLE.has(tgt)) weights[tgt] *= 1.0 + 0.6 * netPull;
+      else if (UNFAVORABLE.has(tgt)) weights[tgt] *= 1.0 - 0.6 * netPull;
+      weights[tgt] = Math.max(weights[tgt], 1e-4);
+    });
+    const total = Object.values(weights).reduce((a, b) => a + b, 0);
+    Object.keys(weights).forEach((tgt) => (M[IDX[src]][IDX[tgt]] = weights[tgt] / total));
+  });
+  return M;
+}
+
+function runMarkovChain(riskScore, momentum) {
+  const M = buildFullMatrix(riskScore, momentum);
+  const tIdx = TRANSIENT.map((s) => IDX[s]);
+  const aIdx = ABSORBING.map((s) => IDX[s]);
+  const Q = tIdx.map((i) => tIdx.map((j) => M[i][j]));
+  const R = tIdx.map((i) => aIdx.map((j) => M[i][j]));
+  const I = tIdx.map((_, i) => tIdx.map((_, j) => (i === j ? 1 : 0)));
+  const IminusQ = I.map((row, i) => row.map((v, j) => v - Q[i][j]));
+  const N = matInverse(IminusQ);
+  const B = matMatMul(N, R);
+  const expectedSteps = N.map((row) => row.reduce((a, b) => a + b, 0));
+  const ideaRow = tIdx.indexOf(IDX.IDEA);
+  return {
+    matrix: M,
+    probSuccess: B[ideaRow][ABSORBING.indexOf("SUCCESS")],
+    probFailure: B[ideaRow][ABSORBING.indexOf("FAILURE")],
+    expectedSteps: expectedSteps[ideaRow],
+  };
+}
+
+const ACTIONS = ["INVEST_MORE", "HOLD", "PIVOT", "EXIT"];
+const GAMMA = 0.9;
+const EXIT_SALVAGE = { IDEA: -0.65, VALIDATION: -0.45, EARLY_TRACTION: -0.15, GROWTH: 0.20, DECLINE: -0.55 };
+const ACTION_COST = { INVEST_MORE: -0.10, HOLD: -0.03, PIVOT: -0.08, EXIT: 0.0 };
+
+function reweightRow(row, state, boost) {
+  const newRow = row.slice();
+  Object.keys(BASE_MATRIX[state]).forEach((tgt) => {
+    const i = IDX[tgt];
+    if (FAVORABLE.has(tgt)) newRow[i] *= 1 + boost;
+    else if (UNFAVORABLE.has(tgt)) newRow[i] *= 1 - boost * 0.6;
+    newRow[i] = Math.max(newRow[i], 1e-4);
+  });
+  const total = newRow.reduce((a, b) => a + b, 0);
+  return newRow.map((v) => v / total);
+}
+function actionTransitionRow(state, action, baseM) {
+  const row = baseM[IDX[state]];
+  if (action === "HOLD") return row;
+  if (action === "INVEST_MORE") return reweightRow(row, state, 0.35);
+  if (action === "PIVOT") {
+    const r = new Array(STATES.length).fill(0);
+    r[IDX.VALIDATION] = 0.70; r[IDX.FAILURE] = 0.15; r[IDX.DECLINE] = 0.15;
+    return r;
+  }
+  if (action === "EXIT") { const r = new Array(STATES.length).fill(0); r[IDX.FAILURE] = 1.0; return r; }
+  throw new Error("Unknown action " + action);
+}
+
+function solveMDP(riskScore, momentum) {
+  const baseM = buildFullMatrix(riskScore, momentum);
+  const V = {}; STATES.forEach((s) => (V[s] = 0)); V.FAILURE = -1.0; V.SUCCESS = 1.0;
+  const cache = {};
+  TRANSIENT.forEach((s) => ACTIONS.forEach((a) => (cache[s + "|" + a] = actionTransitionRow(s, a, baseM))));
+
+  for (let iter = 0; iter < 500; iter++) {
+    let delta = 0;
+    const newV = Object.assign({}, V);
+    TRANSIENT.forEach((s) => {
+      let bestQ = -Infinity;
+      ACTIONS.forEach((a) => {
+        let q;
+        if (a === "EXIT") q = EXIT_SALVAGE[s];
+        else {
+          const row = cache[s + "|" + a];
+          const continuation = STATES.reduce((sum, s2) => sum + row[IDX[s2]] * V[s2], 0);
+          q = ACTION_COST[a] + GAMMA * continuation;
+        }
+        if (q > bestQ) bestQ = q;
+      });
+      newV[s] = bestQ;
+      delta = Math.max(delta, Math.abs(newV[s] - V[s]));
+    });
+    Object.assign(V, newV);
+    if (delta < 1e-8) break;
+  }
+
+  const policy = {};
+  TRANSIENT.forEach((s) => {
+    let bestA = null, bestQ = -Infinity;
+    ACTIONS.forEach((a) => {
+      let q;
+      if (a === "EXIT") q = EXIT_SALVAGE[s];
+      else {
+        const row = cache[s + "|" + a];
+        const continuation = STATES.reduce((sum, s2) => sum + row[IDX[s2]] * V[s2], 0);
+        q = ACTION_COST[a] + GAMMA * continuation;
+      }
+      if (q > bestQ) { bestQ = q; bestA = a; }
+    });
+    policy[s] = bestA;
+  });
+  return { policy, values: V };
+}
+
+// ===========================================================================
+// MODULE 8 -- Validation Engine (Monte Carlo) + Go/Pivot/Stop
+// ===========================================================================
+const N_SIMULATIONS = 4000;
+const COST_PER_VISITOR_BASE_INR = 12.0;
+const TEST_RUNWAY_MONTHS = 6;
+
+function kpiTargets(costPerVisitor, trafficMean, minConversionRate, opp) {
+  const capitalScale = clip(opp.avg_capital_required / 2500000, 0.5, 2.5);
+  const maxCac = clip((costPerVisitor / minConversionRate) * 1.3 * capitalScale, 100, 5000);
+  const minCustomers = Math.max(15, 0.4 * trafficMean * minConversionRate);
+  return { minConversionRate, minMonthlyCustomers: minCustomers, maxCacInr: maxCac };
+}
+
+function runMarketExperiment(opp, marketingBudgetTotal, founderFitComponent, seed) {
+  const rng = mulberry32(seed || 11);
+  const monthlyBudget = Math.max(marketingBudgetTotal / TEST_RUNWAY_MONTHS, 1);
+  const costPerVisitor = COST_PER_VISITOR_BASE_INR * (0.6 + 0.9 * opp.competition_density);
+  const trafficMean = Math.max(monthlyBudget / costPerVisitor, 1);
+
+  let baseConv = 0.012 + 0.035 * opp.demand_index + 0.02 * founderFitComponent - 0.02 * opp.competition_density;
+  baseConv = clip(baseConv, 0.003, 0.09);
+  const concentration = 250.0;
+  const a = baseConv * concentration, b = (1 - baseConv) * concentration;
+
+  const targets = kpiTargets(costPerVisitor, trafficMean, 0.02, opp);
+  let successCount = 0, sumCustomers = 0, sumConversion = 0, sumCac = 0;
+  for (let i = 0; i < N_SIMULATIONS; i++) {
+    const traffic = poissonSample(rng, trafficMean);
+    const conversion = betaSample(rng, a, b);
+    const customers = traffic * conversion;
+    const cac = monthlyBudget / Math.max(customers, 1e-6);
+    sumCustomers += customers; sumConversion += conversion; sumCac += cac;
+    if (conversion >= targets.minConversionRate && customers >= targets.minMonthlyCustomers && cac <= targets.maxCacInr) successCount++;
+  }
+  return {
+    targets, kpiAchievementRate: successCount / N_SIMULATIONS,
+    meanMonthlyCustomers: sumCustomers / N_SIMULATIONS, meanConversionRate: sumConversion / N_SIMULATIONS,
+    meanCacInr: sumCac / N_SIMULATIONS, simulations: N_SIMULATIONS,
+  };
+}
+
+// ---- Final decision: identical weights/thresholds/guardrail to venturemind.py ----
+const DECISION_WEIGHTS = { opportunity_score: 0.22, feasibility_probability: 0.18, risk_inverse: 0.15, kpi_achievement_rate: 0.20, markov_success_probability: 0.25 };
+const GO_THRESHOLD = 0.58;
+const PIVOT_THRESHOLD = 0.40;
+const MARKOV_SUCCESS_GO_FLOOR = 0.15;
+
+function compositeConfidence(oppScore, feas, risk, kpi, markovSuccess) {
+  return DECISION_WEIGHTS.opportunity_score * oppScore + DECISION_WEIGHTS.feasibility_probability * feas +
+    DECISION_WEIGHTS.risk_inverse * (1 - risk) + DECISION_WEIGHTS.kpi_achievement_rate * kpi +
+    DECISION_WEIGHTS.markov_success_probability * markovSuccess;
+}
+function pct(x) { return Math.round(x * 100) + "%"; }
+function band(x) {
+  if (x < 0.2) return "very low"; if (x < 0.4) return "low"; if (x < 0.6) return "moderate";
+  if (x < 0.8) return "high"; return "very high";
+}
+const ACTION_PLAIN = {
+  INVEST_MORE: "put in more time/money now", HOLD: "keep going steadily without over-committing yet",
+  PIVOT: "change the approach before committing more resources", EXIT: "not pursue this specific opportunity any further",
+};
+
+function decide(oppScore, feas, risk, mdpPolicyAtIdea, kpi, markovSuccess) {
+  const rationale = [];
+  const composite = compositeConfidence(oppScore, feas, risk, kpi, markovSuccess);
+
+  if (mdpPolicyAtIdea === "EXIT") {
+    rationale.push("Looking at how this kind of venture tends to play out stage by stage, even accounting for the option to adjust course later, the numbers don't support starting down this path at all.");
+    return { decision: "STOP", compositeConfidence: composite, rationale };
+  }
+
+  rationale.push(`Overall opportunity strength is ${band(oppScore)} (${pct(oppScore)}) -- this blends market demand, competition, how well it fits your skills and location, affordability, and risk.`);
+  rationale.push(`Your estimated ability to actually pull this off (skills + budget vs. what's needed) is ${band(feas)} (${pct(feas)}).`);
+  rationale.push(`Market risk for this opportunity is ${band(risk)} (${pct(risk)}).`);
+  rationale.push(`In a simulated early marketing test, this idea hit its customer/cost targets ${pct(kpi)} of the time.`);
+  rationale.push(`Looking at how similar ventures typically evolve, this path has roughly a ${pct(markovSuccess)} chance of reaching a stable, successful stage, and about ${pct(1 - markovSuccess)} chance of stalling out or failing along the way.`);
+  rationale.push(`At this early stage, the recommended move is to ${ACTION_PLAIN[mdpPolicyAtIdea]}.`);
+
+  if (markovSuccess < MARKOV_SUCCESS_GO_FLOOR) {
+    rationale.push(`Even though some of the other numbers above look decent, the long-run success chance (${pct(markovSuccess)}) is too low on its own to justify a full GO -- a few good numbers shouldn't be able to hide one that says this path usually doesn't work out.`);
+    let decision;
+    if (composite >= PIVOT_THRESHOLD) {
+      decision = "PIVOT";
+      rationale.push("There's still enough potential here to be worth reworking the idea (different niche, pricing, or target customer) rather than dropping it.");
+    } else {
+      decision = "STOP";
+      rationale.push("Combined with the other numbers also being weak, this specific opportunity isn't worth pursuing right now.");
+    }
+    return { decision, compositeConfidence: composite, rationale };
+  }
+
+  let decision;
+  if (composite >= GO_THRESHOLD && (mdpPolicyAtIdea === "INVEST_MORE" || mdpPolicyAtIdea === "HOLD")) {
+    decision = "GO";
+    rationale.push("Taken together, the opportunity looks strong, feels achievable for you, tested well in simulation, and has a reasonable shot at long-term success -- this is worth pursuing.");
+  } else if (composite >= PIVOT_THRESHOLD || mdpPolicyAtIdea === "PIVOT") {
+    decision = "PIVOT";
+    rationale.push("The picture is mixed -- there's real potential, but not enough certainty to commit fully yet. Adjusting the approach first (rather than going all-in or walking away) is the safer move.");
+  } else {
+    decision = "STOP";
+    rationale.push("Between the market conditions, the fit, and the simulated test results, the numbers don't support investing further in this specific opportunity.");
+  }
+  return { decision, compositeConfidence: composite, rationale };
+}
+
+// ===========================================================================
+// FULL PIPELINE -- orchestrates modules 1-8, mirrors VentureMindPipeline.run
+// ===========================================================================
+let CACHED_ALL_OPPORTUNITIES = null;
+let CACHED_RISK_MODEL = null;
+function getAllOpportunities() {
+  if (!CACHED_ALL_OPPORTUNITIES) CACHED_ALL_OPPORTUNITIES = buildOpportunities();
+  return CACHED_ALL_OPPORTUNITIES;
+}
+function getRiskModel() {
+  if (!CACHED_RISK_MODEL) CACHED_RISK_MODEL = buildRiskModel(getAllOpportunities());
+  return CACHED_RISK_MODEL;
+}
+
+function runPipeline(rawInputs) {
+  const founder = buildFounderProfile(rawInputs);
+  const founderState = resolveFounderState(founder.location);
+  const warnings = founder.warnings.slice();
+  if (founderState === null)
+    warnings.push(`Could not match location '${founder.location}' to a known state -- location affinity will be neutral (0.5) for every opportunity.`);
+
+  let candidates = founder.interests.length
+    ? getAllOpportunities().filter((o) => founder.interests.includes(o.sector))
+    : getAllOpportunities();
+  if (!candidates.length) candidates = getAllOpportunities();
+
+  const matches = matchOpportunities(founder, candidates);
+  const scored = scoreOpportunities(matches, founderState);
+  const top = scored[0];
+  const opp = top.opportunity;
+
+  const resourcePlan = solveResourceOptimizer(founder.budgetInr, opp);
+  const trend = weightedLeastSquaresTrend(opp.sector);
+  const risk = riskScoreFor(getRiskModel(), opp);
+  const markov = runMarkovChain(risk.riskScore, trend.slope);
+  const mdp = solveMDP(risk.riskScore, trend.slope);
+  const validation = runMarketExperiment(opp, resourcePlan.allocations["Marketing & Sales"], top.components.founder_fit);
+  const final = decide(top.score, top.match.feasibilityProbability, risk.riskScore, mdp.policy.IDEA, validation.kpiAchievementRate, markov.probSuccess);
+
+  return {
+    founderWarnings: warnings,
+    founderLocation: { rawInput: founder.location, resolvedState: founderState },
+    topOpportunities: scored.slice(0, 10).map((s) => ({ sector: s.opportunity.sector, state: s.opportunity.state, score: s.score })),
+    chosenOpportunity: {
+      sector: opp.sector, state: opp.state, adjustedCapitalRequired: adjustedCapitalRequired(opp),
+      demandIndex: opp.demand_index, growthRate: opp.growth_rate, competitionDensity: opp.competition_density,
+      ecosystemIndex: opp.ecosystem_index, requiredSkills: opp.required_skills,
+    },
+    evidence: {
+      opportunityScore: top.score, components: top.components,
+      feasibilityProbability: top.match.feasibilityProbability, rawCosineSimilarity: top.match.similarity,
+      skillOverlap: top.match.skillOverlap,
+    },
+    resourcePlan,
+    trend,
+    risk,
+    businessEvolution: { markov, mdp },
+    validation,
+    finalDecision: final,
+  };
+}
+
+// ---- universal export: works as a plain <script> global AND as a Node module ----
+const ENGINE = {
+  SKILL_TAXONOMY, SKILL_LABELS, SKILL_GROUPS, SKILL_SYNONYMS,
+  SECTOR_TAXONOMY, SECTOR_SYNONYMS, SECTOR_TABLE, STATE_TABLE,
+  matchFreeTextTokens, resolveFounderState, runPipeline,
+  DECISION_WEIGHTS, GO_THRESHOLD, PIVOT_THRESHOLD, MARKOV_SUCCESS_GO_FLOOR, DEFAULT_WEIGHTS,
+  CATEGORIES, STATES, ACTIONS,
+  // exposed for the automated test harness:
+  _internal: { buildOpportunities, buildFounderProfile, matchOpportunities, scoreOpportunities,
+    solveResourceOptimizer, weightedLeastSquaresTrend, buildRiskModel, riskScoreFor,
+    runMarkovChain, solveMDP, runMarketExperiment, decide },
+};
+
+if (typeof module !== "undefined" && module.exports) module.exports = ENGINE;
+else root.VentureMindEngine = ENGINE;
+
+})(typeof window !== "undefined" ? window : globalThis);
+
+</script>
+<script>
+(function () {
+"use strict";
+const E = window.VentureMindEngine;
+
+const state = {
+  step: 0,
+  skills: new Set(),
+  skillsFreeText: "",
+  budget: null,
+  location: "",
+  interests: new Set(),
+  interestsFreeText: "",
+  risk: null,
+  time: null,
+};
+
+const TOTAL_STEPS = 6;
+const app = document.getElementById("app");
+
+const RISK_CARDS = [
+  { key: "low", title: "Low", desc: "I want to protect my capital. Prefer safer, more predictable paths." },
+  { key: "medium", title: "Medium", desc: "I can accept some ups and downs for a better long-term shot." },
+  { key: "high", title: "High", desc: "I'm comfortable with a real chance of losing my investment for bigger upside." },
+];
+const TIME_CARDS = [
+  { key: "full-time", title: "Full-time", desc: "This would be my main focus, most of my working hours." },
+  { key: "part-time", title: "Part-time", desc: "I'd be building this alongside other commitments." },
+];
+const CITY_SUGGESTIONS = ["Hyderabad", "Bengaluru", "Mumbai", "Chennai", "Delhi", "Kolkata", "Pune", "Jaipur", "Ahmedabad", "Kochi"];
+const BUDGET_QUICKPICKS = [
+  { label: "₹50k", value: 50000 }, { label: "₹1L", value: 100000 }, { label: "₹5L", value: 500000 },
+  { label: "₹10L", value: 1000000 }, { label: "₹25L", value: 2500000 }, { label: "₹50L+", value: 5000000 },
+];
+
+function el(tag, attrs, children) {
+  const e = document.createElement(tag);
+  if (attrs) for (const k in attrs) {
+    if (k === "class") e.className = attrs[k];
+    else if (k === "text") e.textContent = attrs[k];
+    else if (k === "html") e.innerHTML = attrs[k];
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2), attrs[k]);
+    else e.setAttribute(k, attrs[k]);
+  }
+  (children || []).forEach((c) => c && e.appendChild(c));
+  return e;
+}
+function fmtINR(n) {
+  return "₹" + Math.round(n).toLocaleString("en-IN");
+}
+
+// ---------------------------------------------------------------------------
+// render: wizard shell
+// ---------------------------------------------------------------------------
+function render() {
+  app.innerHTML = "";
+  app.appendChild(buildHero());
+
+  if (state.step < TOTAL_STEPS) {
+    app.appendChild(buildProgress());
+    app.appendChild(buildStep(state.step));
+    app.appendChild(buildBottomNav());
+  } else {
+    app.appendChild(buildResults());
+  }
+}
+
+function buildHero() {
+  const isResults = state.step >= TOTAL_STEPS;
+  return el("div", { class: "hero" }, [
+    el("div", { class: "hero-eyebrow", text: "VENTUREMIND" }),
+    el("h1", { class: "hero-title", text: isResults ? "Your reading" : "Find your opportunity" }),
+    el("div", { class: "hero-sub", text: isResults
+      ? "A structured read on the opportunity that fits you best right now."
+      : "Answer six quick questions. Every number below is calculated on your device — nothing you type leaves your phone." }),
+  ]);
+}
+
+function buildProgress() {
+  const wrap = el("div", { class: "progress" });
+  for (let i = 0; i < TOTAL_STEPS; i++) {
+    wrap.appendChild(el("div", { class: "dot" + (i <= state.step ? " done" : "") }));
+  }
+  return wrap;
+}
+
+function buildBottomNav() {
+  const nav = el("div", { class: "bottom-nav" });
+  if (state.step > 0) {
+    nav.appendChild(el("button", { class: "btn btn-ghost", text: "Back", onclick: () => { state.step--; render(); } }));
+  }
+  const isLast = state.step === TOTAL_STEPS - 1;
+  const nextBtn = el("button", {
+    class: "btn btn-primary",
+    text: isLast ? "See my results" : "Next",
+    onclick: () => {
+      if (isLast) { runAnalysis(); }
+      else { state.step++; render(); }
+    },
+  });
+  nextBtn.disabled = !stepIsValid(state.step);
+  nav.appendChild(nextBtn);
+  return nav;
+}
+
+function stepIsValid(step) {
+  if (step === 0) return true; // skills optional
+  if (step === 1) return state.budget && state.budget > 0;
+  if (step === 2) return state.location.trim().length > 0;
+  if (step === 3) return true; // interests optional
+  if (step === 4) return state.risk !== null;
+  if (step === 5) return state.time !== null;
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// step builders
+// ---------------------------------------------------------------------------
+function buildStep(step) {
+  const wrap = el("div", { class: "step" });
+  if (step === 0) return wrapStep(wrap, "Step 1 of 6", "What can you bring?",
+    "Tap everything that applies. Not sure what to type in the box below? Try casual phrasing — \u201ccoding\u201d, \u201cweb dev\u201d, \u201cai\u201d all work.",
+    buildSkillsStep());
+  if (step === 1) return wrapStep(wrap, "Step 2 of 6", "What's your budget?",
+    "Total capital you could realistically put toward this, in Indian Rupees.",
+    buildBudgetStep());
+  if (step === 2) return wrapStep(wrap, "Step 3 of 6", "Where are you based?",
+    "This nudges the recommendation toward opportunities near you — it doesn't force it. A much better fit elsewhere can still win.",
+    buildLocationStep());
+  if (step === 3) return wrapStep(wrap, "Step 4 of 6", "Any sectors you're drawn to?",
+    "Optional. Leave everything unselected to consider all 16 sectors.",
+    buildInterestsStep());
+  if (step === 4) return wrapStep(wrap, "Step 5 of 6", "How much risk can you stomach?",
+    "Be honest — this materially changes what gets recommended.",
+    buildChoiceCards(RISK_CARDS, state.risk, (key) => { state.risk = key; render(); }));
+  if (step === 5) return wrapStep(wrap, "Step 6 of 6", "How much time can you give it?",
+    null,
+    buildChoiceCards(TIME_CARDS, state.time, (key) => { state.time = key; render(); }));
+  return wrap;
+}
+function wrapStep(wrap, label, title, help, body) {
+  wrap.appendChild(el("div", { class: "step-label", text: label }));
+  wrap.appendChild(el("div", { class: "step-title", text: title }));
+  if (help) wrap.appendChild(el("div", { class: "step-help", text: help }));
+  wrap.appendChild(body);
+  return wrap;
+}
+
+function buildSkillsStep() {
+  const container = el("div");
+  Object.keys(E.SKILL_GROUPS).forEach((group) => {
+    container.appendChild(el("div", { class: "chip-group-label", text: group }));
+    const chipRow = el("div", { class: "chips" });
+    E.SKILL_GROUPS[group].forEach((tag) => {
+      const chip = el("div", {
+        class: "chip" + (state.skills.has(tag) ? " selected" : ""),
+        text: E.SKILL_LABELS[tag] || tag,
+        onclick: () => { toggleSet(state.skills, tag); render(); },
+      });
+      chipRow.appendChild(chip);
+    });
+    container.appendChild(chipRow);
+  });
+
+  const ftRow = el("div", { class: "freetext-row" });
+  const input = el("input", {
+    type: "text", placeholder: "Type other skills, comma-separated \u2014 e.g. coding, ai, accountant",
+    value: state.skillsFreeText,
+  });
+  const hint = el("div", { class: "freetext-hint" });
+  function updateHint() {
+    const tokens = input.value.split(",").map((s) => s.trim()).filter(Boolean);
+    if (!tokens.length) { hint.innerHTML = ""; return; }
+    const { matched, unmatched } = E.matchFreeTextTokens(tokens, E.SKILL_TAXONOMY, E.SKILL_SYNONYMS);
+    let html = "";
+    if (matched.length) html += "Understood as: <b>" + matched.map((m) => E.SKILL_LABELS[m] || m).join(", ") + "</b>";
+    if (unmatched.length) html += (html ? "<br>" : "") + "Not recognized (will be ignored): " + unmatched.join(", ");
+    hint.innerHTML = html;
+  }
+  input.addEventListener("input", () => { state.skillsFreeText = input.value; updateHint(); });
+  updateHint();
+  ftRow.appendChild(input);
+  ftRow.appendChild(hint);
+  container.appendChild(ftRow);
+  return container;
+}
+
+function buildInterestsStep() {
+  const container = el("div");
+  const chipRow = el("div", { class: "chips" });
+  E.SECTOR_TAXONOMY.forEach((sector) => {
+    const chip = el("div", {
+      class: "chip" + (state.interests.has(sector) ? " selected" : ""),
+      text: sector,
+      onclick: () => { toggleSet(state.interests, sector); render(); },
+    });
+    chipRow.appendChild(chip);
+  });
+  container.appendChild(chipRow);
+  return container;
+}
+
+function buildBudgetStep() {
+  const container = el("div");
+  const inputWrap = el("div", { class: "budget-input-wrap" });
+  const rupee = el("span", { class: "rupee", text: "₹" });
+  const input = el("input", { type: "number", inputmode: "numeric", placeholder: "1500000", value: state.budget || "" });
+  input.addEventListener("input", () => {
+    state.budget = input.value ? parseFloat(input.value) : null;
+    renderBottomNavOnly();
+  });
+  inputWrap.appendChild(rupee); inputWrap.appendChild(input);
+  container.appendChild(inputWrap);
+
+  const quickLabel = el("div", { class: "chip-group-label", text: "Quick pick" });
+  const quickRow = el("div", { class: "chips" });
+  BUDGET_QUICKPICKS.forEach((qp) => {
+    quickRow.appendChild(el("div", {
+      class: "chip" + (state.budget === qp.value ? " selected" : ""),
+      text: qp.label,
+      onclick: () => { state.budget = qp.value; render(); },
+    }));
+  });
+  container.appendChild(quickLabel);
+  container.appendChild(quickRow);
+  return container;
+}
+
+function buildLocationStep() {
+  const container = el("div");
+  const input = el("input", { type: "text", placeholder: "e.g. Hyderabad", value: state.location });
+  Object.assign(input.style, { width: "100%", padding: "13px 14px", fontSize: "15px", borderRadius: "12px",
+    border: "1.5px solid var(--line)", fontFamily: "var(--font-body)", background: "var(--card)", marginBottom: "16px" });
+  input.addEventListener("input", () => { state.location = input.value; renderBottomNavOnly(); });
+  container.appendChild(input);
+
+  container.appendChild(el("div", { class: "chip-group-label", text: "Or pick a common city" }));
+  const chipRow = el("div", { class: "chips" });
+  CITY_SUGGESTIONS.forEach((city) => {
+    chipRow.appendChild(el("div", {
+      class: "chip" + (state.location === city ? " selected" : ""),
+      text: city,
+      onclick: () => { state.location = city; render(); },
+    }));
+  });
+  container.appendChild(chipRow);
+  return container;
+}
+
+function buildChoiceCards(cards, selectedKey, onSelect) {
+  const container = el("div");
+  cards.forEach((c) => {
+    container.appendChild(el("div", {
+      class: "choice-card" + (selectedKey === c.key ? " selected" : ""),
+      onclick: () => onSelect(c.key),
+    }, [
+      el("div", { class: "cc-title", text: c.title }),
+      el("div", { class: "cc-desc", text: c.desc }),
+    ]));
+  });
+  return container;
+}
+
+function toggleSet(set, key) { if (set.has(key)) set.delete(key); else set.add(key); }
+
+function renderBottomNavOnly() {
+  const oldNav = app.querySelector(".bottom-nav");
+  const newNav = buildBottomNav();
+  if (oldNav) oldNav.replaceWith(newNav);
+}
+
+// ---------------------------------------------------------------------------
+// run pipeline + results screen
+// ---------------------------------------------------------------------------
+let lastReport = null;
+
+function runAnalysis() {
+  const skills = Array.from(state.skills).concat(state.skillsFreeText.split(",").map((s) => s.trim()).filter(Boolean));
+  const interests = Array.from(state.interests).concat(state.interestsFreeText.split(",").map((s) => s.trim()).filter(Boolean));
+  try {
+    lastReport = E.runPipeline({
+      skills, budgetInr: state.budget, location: state.location, interests,
+      riskTolerance: state.risk, timeAvailability: state.time,
+    });
+  } catch (e) {
+    alert("Something went wrong analyzing your inputs: " + e.message);
+    return;
+  }
+  state.step = TOTAL_STEPS;
+  render();
+}
+
+function polarToCartesian(cx, cy, r, angleDeg) {
+  const a = (angleDeg * Math.PI) / 180;
+  return { x: cx + r * Math.cos(a), y: cy - r * Math.sin(a) };
+}
+function describeArc(cx, cy, r, startDeg, endDeg) {
+  const start = polarToCartesian(cx, cy, r, startDeg);
+  const end = polarToCartesian(cx, cy, r, endDeg);
+  const largeArc = endDeg - startDeg <= 180 ? 0 : 1;
+  return `M ${start.x} ${start.y} A ${r} ${r} 0 ${largeArc} 0 ${end.x} ${end.y}`;
+}
+
+function buildGauge(confidence, decision) {
+  const cx = 110, cy = 105, r = 85;
+  const stopEnd = 180 - E.PIVOT_THRESHOLD * 180;
+  const pivotEnd = 180 - E.GO_THRESHOLD * 180;
+  const needleAngle = 180 - clamp01(confidence) * 180;
+  const needleTip = polarToCartesian(cx, cy, r - 14, needleAngle);
+
+  const svg = `
+    <svg viewBox="0 0 220 120" width="220" height="120">
+      <path d="${describeArc(cx, cy, r, 180, stopEnd)}" stroke="#D64545" stroke-width="14" fill="none" stroke-linecap="round" opacity="0.85"/>
+      <path d="${describeArc(cx, cy, r, stopEnd, pivotEnd)}" stroke="#E0A62B" stroke-width="14" fill="none" opacity="0.85"/>
+      <path d="${describeArc(cx, cy, r, pivotEnd, 0)}" stroke="#1FAA59" stroke-width="14" fill="none" stroke-linecap="round" opacity="0.85"/>
+      <line x1="${cx}" y1="${cy}" x2="${needleTip.x}" y2="${needleTip.y}" stroke="#EDEFF7" stroke-width="3.5" stroke-linecap="round"/>
+      <circle cx="${cx}" cy="${cy}" r="6" fill="#EDEFF7"/>
+    </svg>`;
+  const wrap = el("div");
+  wrap.innerHTML = svg;
+  return wrap;
+}
+function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+
+function buildResults() {
+  const r = lastReport;
+  const wrap = el("div", { class: "results" });
+
+  if (r.founderWarnings && r.founderWarnings.length) {
+    wrap.appendChild(el("div", { class: "warning-box",
+      html: "<b>Heads up:</b><br>" + r.founderWarnings.map(w => "\u2022 " + w).join("<br>") }));
+  }
+
+  // -- gauge card --
+  const gaugeCard = el("div", { class: "gauge-card" });
+  gaugeCard.appendChild(buildGauge(r.finalDecision.compositeConfidence, r.finalDecision.decision));
+  gaugeCard.appendChild(el("div", { class: "gauge-decision " + r.finalDecision.decision, text: r.finalDecision.decision }));
+  gaugeCard.appendChild(el("div", { class: "gauge-conf",
+    text: "Overall confidence " + Math.round(r.finalDecision.compositeConfidence * 100) + "%" }));
+  wrap.appendChild(gaugeCard);
+
+  // -- rationale --
+  const rationaleCard = el("div", { class: "card" }, [
+    el("h3", { text: "Why" }),
+    el("ul", { class: "rationale-list" }, r.finalDecision.rationale.map((line) => el("li", { text: line }))),
+  ]);
+  wrap.appendChild(rationaleCard);
+
+  // -- opportunity --
+  const co = r.chosenOpportunity;
+  const oppCard = el("div", { class: "card" }, [
+    el("div", { class: "subtle", text: "RECOMMENDED OPPORTUNITY" }),
+    el("div", { class: "opp-headline", text: co.sector }),
+    el("div", { class: "opp-sub", text: co.state + " \u00b7 your location: " +
+      (r.founderLocation.resolvedState || (r.founderLocation.rawInput || "unspecified") + " (unresolved)") }),
+    el("div", { class: "tag-row" }, co.requiredSkills.map((s) => el("span", { class: "tag", text: E.SKILL_LABELS[s] || s }))),
+  ]);
+  wrap.appendChild(oppCard);
+
+  // -- score breakdown --
+  const weights = E.DEFAULT_WEIGHTS;
+  const compLabels = { demand: "Market demand", competition: "Low competition", founder_fit: "Fit with you",
+    capital_feasibility: "Affordability", risk: "Low risk", location: "Location match" };
+  const scoreCard = el("div", { class: "card" }, [
+    el("h3", { text: "Score breakdown" }),
+    el("div", { class: "subtle", text: "Opportunity score: " + Math.round(r.evidence.opportunityScore * 100) + " / 100" }),
+  ]);
+  Object.keys(compLabels).forEach((k) => {
+    const v = r.evidence.components[k];
+    scoreCard.appendChild(el("div", { class: "bar-row" }, [
+      el("div", { class: "bar-label" }, [
+        el("span", { class: "name", text: compLabels[k] + " (" + Math.round(weights[k] * 100) + "% weight)" }),
+        el("span", { class: "val", text: Math.round(v * 100) + "%" }),
+      ]),
+      el("div", { class: "bar-track" }, [el("div", { class: "bar-fill", style: "width:" + (v * 100) + "%" })]),
+    ]));
+  });
+  wrap.appendChild(scoreCard);
+
+  // -- resource plan --
+  const palette = ["#4B4FE0", "#1FAA59", "#E0A62B", "#0F1730", "#9AA3D4"];
+  const allocCard = el("div", { class: "card" }, [
+    el("h3", { text: "Suggested budget split" }),
+    el("div", { class: "subtle", text: fmtINR(r.resourcePlan.budget) + " total" +
+      (r.resourcePlan.minimumsScaled ? " \u2014 minimums scaled down to fit your budget" : "") }),
+  ]);
+  E.CATEGORIES.forEach((cat, i) => {
+    allocCard.appendChild(el("div", { class: "alloc-row" }, [
+      el("div", { class: "alloc-dot", style: "background:" + palette[i] }),
+      el("div", { class: "alloc-name", text: cat }),
+      el("div", { class: "alloc-amt", text: fmtINR(r.resourcePlan.allocations[cat]) + " (" +
+        Math.round(r.resourcePlan.fractions[cat] * 100) + "%)" }),
+    ]));
+  });
+  wrap.appendChild(allocCard);
+
+  // -- trend & risk --
+  const trendCard = el("div", { class: "card" }, [
+    el("h3", { text: "Market trend & risk" }),
+    el("div", { class: "metric-grid" }, [
+      el("div", { class: "metric" }, [
+        el("div", { class: "m-label", text: "6-month demand trend" }),
+        el("div", { class: "m-val", text: (r.trend.slope >= 0 ? "\u2191 " : "\u2193 ") + Math.abs(r.trend.slope * 100).toFixed(2) + "%/mo" }),
+        el("div", { class: "m-target", text: "fit quality R\u00b2 = " + r.trend.rSquared.toFixed(2) }),
+      ]),
+      el("div", { class: "metric" }, [
+        el("div", { class: "m-label", text: "Risk score" }),
+        el("div", { class: "m-val", text: Math.round(r.risk.riskScore * 100) + "%" }),
+        el("div", { class: "m-target", text: "vs. average opportunity" }),
+      ]),
+    ]),
+  ]);
+  wrap.appendChild(trendCard);
+
+  // -- business evolution --
+  const be = r.businessEvolution;
+  const successPct = Math.round(be.markov.probSuccess * 100);
+  const evoCard = el("div", { class: "card" }, [
+    el("h3", { text: "How this tends to play out" }),
+    el("div", { class: "bar-row" }, [
+      el("div", { class: "bar-label" }, [
+        el("span", { class: "name", text: "Chance of reaching a stable, successful stage" }),
+        el("span", { class: "val", text: successPct + "%" }),
+      ]),
+      el("div", { class: "bar-track" }, [el("div", { class: "bar-fill", style: "width:" + successPct + "%;background:" +
+        (be.markov.probSuccess < E.MARKOV_SUCCESS_GO_FLOOR ? "var(--stop)" : "var(--go)") })]),
+    ]),
+    el("div", { class: "subtle", style: "margin-top:10px", text: "Recommended move at each stage:" }),
+  ]);
+  E.STATES.slice(0, 5).forEach((s) => {
+    evoCard.appendChild(el("div", { class: "stage-row" }, [
+      el("span", { text: s.replace("_", " ") }),
+      el("span", { class: "stage-badge " + be.mdp.policy[s], text: be.mdp.policy[s].replace("_", " ") }),
+    ]));
+  });
+  wrap.appendChild(evoCard);
+
+  // -- validation --
+  const val = r.validation;
+  const valCard = el("div", { class: "card" }, [
+    el("h3", { text: "Simulated market test" }),
+    el("div", { class: "subtle", text: val.simulations.toLocaleString() + " simulated attempts \u00b7 " +
+      Math.round(val.kpiAchievementRate * 100) + "% hit their targets" }),
+    el("div", { class: "metric-grid" }, [
+      el("div", { class: "metric" }, [
+        el("div", { class: "m-label", text: "Monthly customers" }),
+        el("div", { class: "m-val", text: Math.round(val.meanMonthlyCustomers) }),
+        el("div", { class: "m-target", text: "target \u2265 " + Math.round(val.targets.minMonthlyCustomers) }),
+      ]),
+      el("div", { class: "metric" }, [
+        el("div", { class: "m-label", text: "Conversion rate" }),
+        el("div", { class: "m-val", text: (val.meanConversionRate * 100).toFixed(1) + "%" }),
+        el("div", { class: "m-target", text: "target \u2265 " + (val.targets.minConversionRate * 100).toFixed(1) + "%" }),
+      ]),
+      el("div", { class: "metric" }, [
+        el("div", { class: "m-label", text: "Cost per customer" }),
+        el("div", { class: "m-val", text: fmtINR(val.meanCacInr) }),
+        el("div", { class: "m-target", text: "target \u2264 " + fmtINR(val.targets.maxCacInr) }),
+      ]),
+    ]),
+  ]);
+  wrap.appendChild(valCard);
+
+  wrap.appendChild(el("div", { class: "disclaimer",
+    text: "Every number above comes from a synthetic benchmark model running entirely on this device — no real startup outcome data was used, and nothing here predicts real-world success. Treat this as a structured way to compare options, not a guarantee." }));
+
+  wrap.appendChild(el("button", { class: "btn btn-primary restart-btn", text: "Start over",
+    onclick: () => { resetState(); render(); } }));
+
+  return wrap;
+}
+
+function resetState() {
+  state.step = 0; state.skills = new Set(); state.skillsFreeText = ""; state.budget = null;
+  state.location = ""; state.interests = new Set(); state.interestsFreeText = ""; state.risk = null; state.time = null;
+  lastReport = null;
+}
+
+render();
+})();
+
+</script>
+</body>
+</html>
